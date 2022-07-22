@@ -413,6 +413,14 @@
     [
       "38ae4a5c-63a6-4d81-9823-9542bf6f0e12",
       ""
+    ],
+    [
+      "ad44c88a-2183-449f-9759-8c21b89dddd9",
+      "Back_PCB"
+    ],
+    [
+      "b8f2e657-2328-461e-8e8b-de9ad5cf279e",
+      "Power"
     ]
   ],
   "text_variables": {}

@@ -1,0 +1,8 @@
+(sym_lib_table
+  (lib (name "nixies-us")(type "Legacy")(uri "${KIPRJMOD}/Eagle-and-KiCAD-Nixie-Libs-master/nixies-us.lib")(options "")(descr ""))
+  (lib (name "Retro_clock")(type "Legacy")(uri "${KIPRJMOD}/Retro_clock.lib")(options "")(descr ""))
+  (lib (name "Retro_clock-rescue")(type "Legacy")(uri "${KIPRJMOD}/Retro_clock-rescue.lib")(options "")(descr ""))
+  (lib (name "CustomComponents")(type "Legacy")(uri "${KIPRJMOD}/CustomComponents.lib")(options "")(descr ""))
+  (lib (name "KLS7-TS6601-13.0-180")(type "Legacy")(uri "${KIPRJMOD}/KLS7-TS6601-13.0-180.lib")(options "")(descr ""))
+  (lib (name "Retro_clock_back")(type "KiCad")(uri "${KIPRJMOD}/Retro_clock_back.kicad_sym")(options "")(descr ""))
+)
