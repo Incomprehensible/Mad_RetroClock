@@ -1,3 +1,0 @@
-(fp_lib_table
-  (lib (name Retro_clock)(type KiCad)(uri ${KIPRJMOD}/Retro_clock.pretty)(options "")(descr ""))
-)
