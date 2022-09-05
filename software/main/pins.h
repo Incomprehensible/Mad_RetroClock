@@ -1,0 +1,26 @@
+#ifndef PINS_H
+#define PINS_H
+
+#include "driver/gpio.h"
+
+#define SHDN_PIN GPIO_NUM_32
+#define BUTTON_Y_PIN GPIO_NUM_36 // SENSOR_VP
+#define BUTTON_N_PIN GPIO_NUM_39 //SENSOR_VN
+#define ENC_DATA_PIN GPIO_NUM_34
+#define ENC_CLK_PIN GPIO_NUM_23
+#define SWITCH_PIN GPIO_NUM_35
+#define N1A_PIN GPIO_NUM_33
+#define N1B_PIN GPIO_NUM_26
+#define N1C_PIN GPIO_NUM_27
+#define N1D_PIN GPIO_NUM_25
+#define N2A_PIN GPIO_NUM_4
+#define N2B_PIN GPIO_NUM_19
+#define N2C_PIN GPIO_NUM_21
+#define N2D_PIN GPIO_NUM_5
+#define SHIFT_CLK_PIN GPIO_NUM_18
+#define SHIFT_DSA_PIN GPIO_NUM_22
+#define PLAYING_PIN GPIO_NUM_15
+#define I2C_SDA_PIN GPIO_NUM_13
+#define I2C_SCL_PIN GPIO_NUM_14
+
+#endif
