@@ -37,7 +37,7 @@ static void shift_bit(bool value, uint8_t bits, uint32_t delay)
     }
 }
 
-void set_numbers(uint8_t A, uint8_t B)
+void set_minutes(uint8_t A, uint8_t B)
 {
     uint16_t tmp = 0;
     tmp |= B & 0b0001;
@@ -50,9 +50,7 @@ void set_numbers(uint8_t A, uint8_t B)
     tmp |= ((A >> 2) & 0b0001) << (C_OFFSET+4);
     tmp |= ((A >> 3) & 0b0001) << (D_OFFSET+4);
 
-    printf("tmp: %d\n", tmp);
-
-    printf("\nShifting:\n[ ");
+    //printf("\nShifting:\n[ ");
     for (int i=0; i < 8; ++i)
     {
         printf("%d ", (tmp >> i) & 0x01);
@@ -60,7 +58,7 @@ void set_numbers(uint8_t A, uint8_t B)
         shift_bit((tmp >> i) & 0x01, 1, 0);
         //vTaskDelay(1000);
     }
-    printf("]\n");
+    //printf("]\n");
     // if (nixie_offset)
     // {
     //     for (int i=0; i < 4; ++i)
@@ -68,7 +66,7 @@ void set_numbers(uint8_t A, uint8_t B)
     //         shift_bit(0, 1, 0);
     //     }
     // }
-    vTaskDelay(1000);
+    //vTaskDelay(1000);
 }
 
 void set_number(uint8_t value, uint8_t nixie_offset)
@@ -83,9 +81,7 @@ void set_number(uint8_t value, uint8_t nixie_offset)
     tmp |= ((value >> 2) & 0b0001) << C_OFFSET;
     tmp |= ((value >> 3) & 0b0001) << D_OFFSET;
 
-    printf("tmp: %d\n", tmp);
-
-    printf("\nShifting:\n[ ");
+    //printf("\nShifting:\n[ ");
     for (int i=0; i < 4; ++i)
     {
         printf("%d ", (tmp >> i) & 0x01);
@@ -93,7 +89,7 @@ void set_number(uint8_t value, uint8_t nixie_offset)
         shift_bit((tmp >> i) & 0x01, 1, 0);
         //vTaskDelay(1000);
     }
-    printf("]\n");
+    //printf("]\n");
     if (nixie_offset)
     {
         for (int i=0; i < 4; ++i)
@@ -101,7 +97,7 @@ void set_number(uint8_t value, uint8_t nixie_offset)
             shift_bit(0, 1, 0);
         }
     }
-    vTaskDelay(1000);
+    //vTaskDelay(1000);
 }
 
 void test_shift()

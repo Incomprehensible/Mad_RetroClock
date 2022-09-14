@@ -17,8 +17,8 @@
 #define AP_MAX_CONN         10
 
 static const char *WIFI = "wifi station";
-#define WIFI_SSID "Xiaomi_80F5"
-#define WIFI_PASS "ciweiedp6c"
+#define WIFI_SSID "Keenetic-2651"//"Xiaomi_80F5"
+#define WIFI_PASS "2QQkNANV"//"ciweiedp6c"
 #define WIFI_MAX_RETRY 5
 
 EventGroupHandle_t s_wifi_event_group;
@@ -50,19 +50,25 @@ static void event_handler(void* arg, esp_event_base_t event_base,
     }
 }
 
-void ntp_set_time(time_t *now)
+bool ntp_set_time(time_t *now)
 {
     int retry = 0;
-    const int retry_count = 15;
-    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
-        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < NTP_RETRY_COUNT) {
+        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, NTP_RETRY_COUNT);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+    if (retry == NTP_RETRY_COUNT)
+    {
+        ESP_LOGE(WIFI, "Couldn't request time through NTP.");
+        return false;
     }
     time(now);
+    return true;
 }
 
-void wifi_init_sta(time_t *now)
+bool wifi_init_sta(time_t *now)
 {
+    bool status = true;
     s_wifi_event_group = xEventGroupCreate();
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -117,6 +123,7 @@ void wifi_init_sta(time_t *now)
     if (bits & WIFI_CONNECTED_BIT) {
         ESP_LOGI(WIFI, "connected to ap SSID:%s password:%s",
                  WIFI_SSID, WIFI_PASS);
+        status = true;
     } else if (bits & WIFI_FAIL_BIT) {
         ESP_LOGI(WIFI, "Failed to connect to SSID:%s, password:%s",
                  WIFI_SSID, WIFI_PASS);
@@ -125,13 +132,20 @@ void wifi_init_sta(time_t *now)
     }
 
     // wait for time to be set
-    ntp_set_time(now);
+    if (status)
+    {
+        if (!ntp_set_time(now))
+            status = false;
+        else
+            status = true;
+    }
 
     ESP_ERROR_CHECK(esp_wifi_stop());
     /* The event will not be processed after unregister */
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
     vEventGroupDelete(s_wifi_event_group);
+    return status;
 }
 
 static void init_sntp(void)
@@ -166,7 +180,7 @@ static void init_sntp(void)
 #endif
 }
 
-void obtain_time(struct tm *timeinfo)
+bool obtain_time(struct tm *timeinfo)
 {
     /**
      * NTP server address could be aquired via DHCP,
@@ -182,7 +196,8 @@ void obtain_time(struct tm *timeinfo)
     init_sntp();
 
     time_t now = 0;
-    wifi_init_sta(&now);
+    if (!wifi_init_sta(&now))
+        return false;
 
     char strftime_buf[64];
     // Set timezone to Moscow
@@ -196,4 +211,5 @@ void obtain_time(struct tm *timeinfo)
     strftime(strftime_buf, sizeof(strftime_buf), "%c", timeinfo);
     ESP_LOGI(TAG, "The current date/time in Moscow is: %s", strftime_buf);
 #endif
+    return true;
 }
