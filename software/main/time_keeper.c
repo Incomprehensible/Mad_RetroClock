@@ -17,8 +17,8 @@
 #define AP_MAX_CONN         10
 
 static const char *WIFI = "wifi station";
-#define WIFI_SSID "Keenetic-2651"//"Xiaomi_80F5"
-#define WIFI_PASS "2QQkNANV"//"ciweiedp6c"
+#define WIFI_SSID "HUAWEI-B535-1489"
+#define WIFI_PASS "5YA9GF381L0"
 #define WIFI_MAX_RETRY 5
 
 EventGroupHandle_t s_wifi_event_group;
@@ -201,9 +201,8 @@ bool obtain_time(struct tm *timeinfo)
 
     char strftime_buf[64];
     // Set timezone to Moscow
-    // setenv("TZ", "MSK-3MSD,M3.5.0/2,M10.5.0/3", 1);
-    // setenv("TZ", "Europe/Moscow", 1);
-    setenv("TZ", "MSK-3", 1);
+    // setenv("TZ", "MSK-3", 1);
+    setenv("TZ", "CET-1CEST,M3.5.0/02,M10.5.0/03", 1);
 
     tzset();
     localtime_r(&now, timeinfo);

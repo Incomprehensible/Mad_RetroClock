@@ -22,6 +22,9 @@
 #include "../RTC/ds3231.h"
 #include "shift_register.h"
 #include "esp_sleep.h"
+#include "dfplayer.h"
+
+QueueHandle_t uart_queue;
 
 struct Alarm {
     struct tm time;
@@ -72,38 +75,6 @@ static void IRAM_ATTR encoder_isr_handler(void* arg)
     }
 }
 
-// static void IRAM_ATTR encoder_isr_handler(void* arg)
-// {
-//     if ((gpio_get_level(ENC_CLK_PIN) == 0))
-//     {
-//         if ((!BLOCK_RIGHT) && (gpio_get_level(ENC_DATA_PIN) == 0))
-//         {
-//             BLOCK_RIGHT = true;
-//             BLOCK_LEFT = false;
-//         }
-//         if (gpio_get_level(ENC_DATA_PIN) == 1)
-//         {
-//             BLOCK_LEFT = true;
-//             BLOCK_RIGHT = false;
-//         }
-//     }
-//     if (gpio_get_level(ENC_CLK_PIN) == 1)
-//     {
-//         if (BLOCK_RIGHT && (gpio_get_level(ENC_DATA_PIN) == 1))
-//         {
-//             TURN_RIGHT = true;
-//             TURN_LEFT = false;
-//             BLOCK_RIGHT = false;
-//         }
-//         else if (BLOCK_LEFT && (gpio_get_level(ENC_DATA_PIN) == 0))
-//         {
-//             TURN_LEFT = true;
-//             TURN_RIGHT = false;
-//             BLOCK_LEFT = false;
-//         }
-//     }
-// }
-
 static void IRAM_ATTR button_isr_handler(void* arg)
 {
     if ((uint32_t)arg == BUTTON_Y_PIN) {
@@ -151,7 +122,6 @@ void init_gpio()
     gpio_set_level(SHIFT_CLK_PIN, 0);
 
     if (gpio_install_isr_service(0) != ESP_OK)
-    // if (gpio_install_isr_service(ESP_INTR_FLAG_LEVEL3 | ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_EDGE | ESP_INTR_FLAG_INTRDISABLED) != ESP_OK)
         ESP_LOGE("GPIO", "Error in gpio_install_isr_service()");
     gpio_set_intr_type(SWITCH_PIN, GPIO_INTR_NEGEDGE);
     if (gpio_isr_handler_add(SWITCH_PIN, switch_isr_handler, NULL) != ESP_OK)
@@ -159,11 +129,6 @@ void init_gpio()
     if (gpio_intr_enable(SWITCH_PIN) != ESP_OK)
         ESP_LOGE("GPIO", "Error in gpio_intr_enable() for switch");
 
-    // gpio_set_intr_type(ENC_CLK_PIN, GPIO_INTR_NEGEDGE);
-    // if (gpio_isr_handler_add(ENC_CLK_PIN, encoder_isr_handler, (void*) ENC_CLK_PIN) != ESP_OK)
-    //     ESP_LOGE("GPIO", "Error in gpio_isr_handler_add() for enc_clk");
-    // gpio_set_intr_type(ENC_DATA_PIN, GPIO_INTR_NEGEDGE);
-    // gpio_isr_handler_add(ENC_DATA_PIN, encoder_isr_handler, (void*) ENC_DATA_PIN);
     gpio_set_intr_type(ENC_CLK_PIN, GPIO_INTR_ANYEDGE);
     if (gpio_isr_handler_add(ENC_CLK_PIN, encoder_isr_handler, (void*) ENC_CLK_PIN) != ESP_OK)
         ESP_LOGE("GPIO", "Error in gpio_isr_handler_add() for enc_clk");
@@ -220,12 +185,12 @@ esp_err_t uart_init()
     const uart_port_t uart_num = UART_NUM;
     esp_err_t err;
     uart_config_t uart_config = {
-        .baud_rate = 115200,
+        .baud_rate = BAUD_RATE,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .rx_flow_ctrl_thresh = 122,
+        // .rx_flow_ctrl_thresh = 122,
     };
 
     // Install UART driver using an event queue here
@@ -235,7 +200,7 @@ esp_err_t uart_init()
     if (err != ESP_OK)
         return err;
     
-    err = uart_set_pin(uart_num, UART_TX, UART_RX, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    err = uart_set_pin(uart_num, UART_TX_PIN, UART_RX_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     if (err != ESP_OK)
         return err;
  
@@ -246,22 +211,6 @@ esp_err_t uart_init()
     esp_log_level_set("UART", ESP_LOG_INFO);
     return ESP_OK;
 }
-
-// esp_err_t i2c_master_init()
-// {
-//     i2c_config_t conf = {
-//         .mode = I2C_MODE_MASTER,
-//         .sda_pullup_en = GPIO_PULLUP_DISABLE,
-//         .scl_pullup_en = GPIO_PULLUP_DISABLE,
-//         .master.clk_speed = 400000,
-//         .sda_io_num = I2C_SDA_PIN,
-//         .scl_io_num = I2C_SCL_PIN,
-//         .clk_flags = 0,
-//     };
-
-//     i2c_param_config(I2C_NUM_0, &conf);
-//     return i2c_driver_install(I2C_NUM_0, conf.mode, 0, 0, 0);
-// }
 
 esp_err_t i2c_master_init(i2c_dev_t *dev, i2c_port_t port)
 {
@@ -278,32 +227,6 @@ esp_err_t i2c_master_init(i2c_dev_t *dev, i2c_port_t port)
     i2c_param_config(port, &conf);
     return i2c_driver_install(port, conf.mode, 0, 0, 0);
 }
-
-// void test_i2c()
-// {
-//     // i2c init & scan
-//     if (i2c_master_init() != ESP_OK) {
-//         ESP_LOGE(TAG, "i2c init failed\n");
-//         return;
-//     }
-
-//      printf("i2c scan: \n");
-//      for (uint8_t i = 1; i < 127; i++)
-//      {
-//         int ret;
-//         i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-//         i2c_master_start(cmd);
-//         i2c_master_write_byte(cmd, (i << 1) | I2C_MASTER_WRITE, 1);
-//         i2c_master_stop(cmd);
-//         ret = i2c_master_cmd_begin(I2C_NUM_0, cmd, 100 / portTICK_RATE_MS);
-//         i2c_cmd_link_delete(cmd);
-    
-//         if (ret == ESP_OK)
-//         {
-//             printf("Found device at: 0x%2x\n", i);
-//         }
-//     }
-// }
 
 void test_RTC(i2c_dev_t *dev)
 {
@@ -451,27 +374,10 @@ void run_alarm_mode(struct Alarm* timeinfo, QueueHandle_t* handle)
                 //ESP_LOGI("ALARM", "run_alarm_mode(): NEXT_NIXIE");
             }
             xQueueReceive(*handle,(void*)&data,pdMS_TO_TICKS(100));
-            
             get_rotation(&data, &number[index]);
-            // if (TURN_RIGHT) {
-            //     TURN_RIGHT = 0;
-            //     number[index] = (number[index] + 1 > 9)? 0 : number[index]+1;
-            // }
-            // else if (TURN_LEFT) {
-            //     TURN_LEFT = 0;
-            //     number[index] = (number[index] == 0)? 9 : number[index]-1;
-            // }
-        
             ESP_LOGI("ALARM", "run_alarm_mode(): index: %d number[]: %d", index, number[index]);
-            // if (NEXT_NIXIE) {
-            //     NEXT_NIXIE = false;
-            //     index = (index + 1 > 3)? 0 : index + 1;
-            //     //ESP_LOGI("ALARM", "run_alarm_mode(): NEXT_NIXIE");
-            // }
             set_number_by_nixie(index, &number[index]);
-            // vTaskDelay(pdMS_TO_TICKS(10));
         }
-
         vTaskDelay(pdMS_TO_TICKS(10));
     }
     // unregister interrupts
@@ -506,10 +412,40 @@ void report_flags()
     ESP_LOGI("FLAGS", "ALARM_UNSET: %d", ALARM_UNSET);
 }
 
+void test_DFPlayer()
+{
+    ESP_LOGI("UART", "Requested parameters...");
+    vTaskDelay((3*1000) / portTICK_PERIOD_MS);
+    execute_command(DFP_REQ_PARAMS, 0x0);
+    await_feedback();
+
+    while (true)
+    {
+        ESP_LOGI("UART", "Set volume...");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        execute_command(DFP_VOL, 20);
+        await_feedback();
+        ESP_LOGI("UART", "Requested status...");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        execute_command(DFP_REQ_STATUS, 0);
+        await_feedback();
+        ESP_LOGI("UART", "Requested version...");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        execute_command(DFP_REQ_VERS, 0);
+        await_feedback();
+        ESP_LOGI("UART", "Requested volume...");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        execute_command(DFP_REQ_VOL, 0);
+        await_feedback();
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
 void app_main(void)
 {
-    printf("Hello world!\n");
     init_gpio();
+    if (uart_init() != ESP_OK)
+        ESP_LOGE("UART", "Error in UART init, Can't use MP3 module.");
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -526,13 +462,6 @@ void app_main(void)
             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
     printf("Minimum free heap size: %d bytes\n", esp_get_minimum_free_heap_size());
-
-// TEST
-    //zero_out_shift(0);
-    //set_number(1, 0);
-    //set_minutes(1, 2);
-    //test_shift();
-    //test_i2c();
 
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -552,13 +481,21 @@ void app_main(void)
     };
     init_RTC(&dev, &timeinfo, synchronized);
 
+    // if (uart_init() != ESP_OK)
+    //     ESP_LOGE("UART", "Error in UART init, Can't use MP3 module.");
+    
+    // TEST
+    test_DFPlayer();
+
     struct tm old_timeinfo = { 0 };
     struct Alarm alarm_timeinfo = { 0 };
 
     power_nixie(true);
-    report_switch_states();
-    report_flags();
-            handle = xQueueCreate(10,sizeof(struct encoder_data));
+
+
+    // report_switch_states();
+    // report_flags();
+    handle = xQueueCreate(10, sizeof(struct encoder_data));
 
     while (true)
     {
@@ -575,7 +512,7 @@ void app_main(void)
             run_alarm_mode(&alarm_timeinfo, &handle);
             ds3231_get_time(&dev, &timeinfo);
             set_time(timeinfo.tm_hour, timeinfo.tm_min);
-            vTaskDelay(100);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
         }
         else
         {
