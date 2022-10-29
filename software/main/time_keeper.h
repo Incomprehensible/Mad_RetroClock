@@ -10,6 +10,6 @@
 #define TIME_SERVER1 "0.at.pool.ntp.org"//"1.ru.pool.ntp.org"
 #define TIME_SERVER "pool.ntp.org"
 
-#define NTP_RETRY_COUNT 17
+#define NTP_RETRY_COUNT 7
 
 #endif

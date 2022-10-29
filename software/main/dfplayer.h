@@ -8,6 +8,8 @@
 #define UART_NUM UART_NUM_2
 #define BAUD_RATE 9600
 
+#define DEFAULT_VOLUME 20
+
 #define UART_BUFF_SIZE (1024 * 2)
 #define UART_QUEUE_SIZE (20)
 
@@ -15,7 +17,6 @@
 #define TX_TIMEOUT      100
 #define RX_TIMEOUT      1000
 
-// #define CONN_NOTIFY_WAIT_MS 10
 #define DFP_PACKET_LEN 10
 
 // Protocol

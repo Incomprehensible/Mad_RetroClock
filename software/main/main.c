@@ -23,6 +23,8 @@
 #include "shift_register.h"
 #include "esp_sleep.h"
 #include "dfplayer.h"
+#include "debug.h"
+#include "test_hardware.h"
 
 QueueHandle_t uart_queue;
 
@@ -44,7 +46,6 @@ volatile bool ALARM_SET = false;
 volatile bool ALARM_UNSET = false;
 volatile bool TURN_RIGHT = false;
 volatile bool TURN_LEFT = false;
-// volatile int32_t turnOffset = 0;
 volatile bool BLOCK_LEFT = false;
 volatile bool BLOCK_RIGHT = false;
 
@@ -152,34 +153,6 @@ void power_nixie(bool on)
         gpio_set_level(SHDN_PIN, 1);
 }
 
-void report_switch_states()
-{
-    if (gpio_get_level(SWITCH_PIN) == 0)
-        printf("\nSWITCH LOW.\n");
-    else
-        printf("\nSWITCH HIGH.\n");
-
-    if (gpio_get_level(BUTTON_Y_PIN) == 0)
-        printf("\nBUTTON Y LOW.\n");
-    else
-        printf("\nBUTTON Y HIGH.\n");
-    
-    if (gpio_get_level(BUTTON_N_PIN) == 0)
-        printf("\nBUTTON N LOW.\n");
-    else
-        printf("\nBUTTON N HIGH.\n");
-
-    if (gpio_get_level(ENC_CLK_PIN) == 0)
-        printf("\nENC CLK LOW.\n");
-    else
-        printf("\nENC CLK HIGH.\n");
-
-    if (gpio_get_level(ENC_DATA_PIN) == 0)
-        printf("\nENC DATA LOW.\n");
-    else
-        printf("\nENC DATA HIGH.\n");
-}
-
 esp_err_t uart_init()
 {
     const uart_port_t uart_num = UART_NUM;
@@ -228,26 +201,6 @@ esp_err_t i2c_master_init(i2c_dev_t *dev, i2c_port_t port)
     return i2c_driver_install(port, conf.mode, 0, 0, 0);
 }
 
-void test_RTC(i2c_dev_t *dev)
-{
-    struct tm time = { 0 };
-    if (ds3231_get_time(dev, &time) != ESP_OK) {
-        ESP_LOGE(I2C, "Couldn't ask the current time.\n");
-        return;
-    }
-    ESP_LOGI(I2C, "Current time: %d : %d : %d", time.tm_hour, time.tm_min , time.tm_sec);
-    if (ds3231_get_time(dev, &time) != ESP_OK) {
-        ESP_LOGE(I2C, "Couldn't ask the current time.\n");
-        return;
-    }
-    ESP_LOGI(I2C, "Current time: %d : %d : %d", time.tm_hour, time.tm_min , time.tm_sec);
-    if (ds3231_get_time(dev, &time) != ESP_OK) {
-        ESP_LOGE(I2C, "Couldn't ask the current time.\n");
-        return;
-    }
-    ESP_LOGI(I2C, "Current time: %d : %d : %d", time.tm_hour, time.tm_min , time.tm_sec);
-}
-
 void init_RTC(i2c_dev_t *dev, struct tm *time, bool set_time)
 {
     if (i2c_master_init(dev, I2C_NUM_0) != ESP_OK) {
@@ -265,6 +218,19 @@ void init_RTC(i2c_dev_t *dev, struct tm *time, bool set_time)
         return;
     }
     ESP_LOGI(I2C, "Current time: %d : %d : %d", time->tm_hour, time->tm_min , time->tm_sec);
+}
+
+void init_DFPlayer()
+{
+    execute_command(DFP_REQ_PARAMS, 0x0);
+    await_feedback();
+    // vTaskDelay(300 / portTICK_PERIOD_MS);
+    execute_command(DFP_PAUSE, 0);
+    vTaskDelay(300 / portTICK_PERIOD_MS);
+    execute_command(DFP_VOL, DEFAULT_VOLUME);
+    vTaskDelay(300 / portTICK_PERIOD_MS);
+    // execute_command(DFP_STANDBY, 0);
+    execute_command(DFP_PLAY, DFP_PLAY_SLEEP);
 }
 
 void set_hour(uint8_t A, uint8_t B)
@@ -366,19 +332,27 @@ void run_alarm_mode(struct Alarm* timeinfo, QueueHandle_t* handle)
     struct encoder_data data = {0};
     while (!ALARM_SET && !ALARM_UNSET)
     {
-        while(uxQueueMessagesWaiting(*handle))
+        if (NEXT_NIXIE) {
+                NEXT_NIXIE = false;
+                index = (index + 1 > 3)? 0 : index + 1;
+                ESP_LOGI("ALARM", "run_alarm_mode(): NEXT_NIXIE");
+            }
+        while (uxQueueMessagesWaiting(*handle))
         {
             if (NEXT_NIXIE) {
                 NEXT_NIXIE = false;
                 index = (index + 1 > 3)? 0 : index + 1;
-                //ESP_LOGI("ALARM", "run_alarm_mode(): NEXT_NIXIE");
+                ESP_LOGI("ALARM", "run_alarm_mode(): NEXT_NIXIE");
             }
             xQueueReceive(*handle,(void*)&data,pdMS_TO_TICKS(100));
             get_rotation(&data, &number[index]);
+            if (index == 0 && number[index] > 2)
+                number[index] = 0;
             ESP_LOGI("ALARM", "run_alarm_mode(): index: %d number[]: %d", index, number[index]);
             set_number_by_nixie(index, &number[index]);
         }
-        vTaskDelay(pdMS_TO_TICKS(10));
+        NEXT_NIXIE = false; // fix to prevent false triggers
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
     // unregister interrupts
     gpio_intr_disable(ENC_DATA_PIN);
@@ -404,41 +378,47 @@ void run_alarm_mode(struct Alarm* timeinfo, QueueHandle_t* handle)
     ALARM_UNSET = false;
 }
 
-void report_flags()
+void annoying_alarm_mode(struct Alarm* alarm, struct tm* timeinfo, i2c_dev_t* dev)
 {
-    ESP_LOGI("FLAGS", "ALARM_MODE_SET: %d", ALARM_MODE_SET);
-    ESP_LOGI("FLAGS", "NEXT_NIXIE: %d", NEXT_NIXIE);
-    ESP_LOGI("FLAGS", "ALARM_SET: %d", ALARM_SET);
-    ESP_LOGI("FLAGS", "ALARM_UNSET: %d", ALARM_UNSET);
-}
+    struct tm old_timeinfo = { 0 };
 
-void test_DFPlayer()
-{
-    ESP_LOGI("UART", "Requested parameters...");
-    vTaskDelay((3*1000) / portTICK_PERIOD_MS);
-    execute_command(DFP_REQ_PARAMS, 0x0);
-    await_feedback();
+    gpio_intr_disable(SWITCH_PIN);
+    gpio_intr_enable(BUTTON_Y_PIN);
+    gpio_intr_enable(BUTTON_N_PIN);
 
-    while (true)
+    execute_command(DFP_TRACK, 3);
+
+    while (!ALARM_SET && !ALARM_UNSET)
     {
-        ESP_LOGI("UART", "Set volume...");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        execute_command(DFP_VOL, 20);
-        await_feedback();
-        ESP_LOGI("UART", "Requested status...");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        execute_command(DFP_REQ_STATUS, 0);
-        await_feedback();
-        ESP_LOGI("UART", "Requested version...");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        execute_command(DFP_REQ_VERS, 0);
-        await_feedback();
-        ESP_LOGI("UART", "Requested volume...");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        execute_command(DFP_REQ_VOL, 0);
-        await_feedback();
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        ds3231_get_time(dev, timeinfo);
+        if ((old_timeinfo.tm_min != timeinfo->tm_min) || (old_timeinfo.tm_hour != timeinfo->tm_hour))
+        {
+            set_time(timeinfo->tm_hour, timeinfo->tm_min);
+            memcpy(&old_timeinfo, timeinfo, sizeof(struct tm));
+        }
+        vTaskDelay(450 / portTICK_PERIOD_MS);
     }
+
+    gpio_intr_disable(BUTTON_Y_PIN);
+    execute_command(DFP_PAUSE, 0);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    execute_command(DFP_PLAY, DFP_PLAY_SLEEP);
+    if (ALARM_UNSET) // user woke up
+    {
+        gpio_intr_disable(BUTTON_N_PIN);
+        memset(alarm, 0, sizeof(struct Alarm));
+        ESP_LOGI("ALARM", "User woke up!");
+    }
+    else // user requested to sleep for some more time
+    {
+        alarm->time.tm_min = timeinfo->tm_min + 10;
+        ESP_LOGI("ALARM", "User asked for 10 mins.");
+        ESP_LOGI("ALARM", "Next alarm: %d:%d", alarm->time.tm_hour, alarm->time.tm_min);
+    }
+
+    ALARM_SET = false;
+    ALARM_UNSET = false;
+    gpio_intr_enable(SWITCH_PIN);
 }
 
 void app_main(void)
@@ -446,6 +426,7 @@ void app_main(void)
     init_gpio();
     if (uart_init() != ESP_OK)
         ESP_LOGE("UART", "Error in UART init, Can't use MP3 module.");
+    init_DFPlayer();
 
     /* Print chip information */
     esp_chip_info_t chip_info;
@@ -480,18 +461,13 @@ void app_main(void)
         .clk_speed = I2C_FREQ_HZ,
     };
     init_RTC(&dev, &timeinfo, synchronized);
-
-    // if (uart_init() != ESP_OK)
-    //     ESP_LOGE("UART", "Error in UART init, Can't use MP3 module.");
-    
-    // TEST
-    test_DFPlayer();
+    // test_DFPlayer();
+    // init_DFPlayer();
 
     struct tm old_timeinfo = { 0 };
     struct Alarm alarm_timeinfo = { 0 };
 
     power_nixie(true);
-
 
     // report_switch_states();
     // report_flags();
@@ -499,6 +475,17 @@ void app_main(void)
 
     while (true)
     {
+        if (alarm_timeinfo.set)
+        {
+            if ((alarm_timeinfo.time.tm_min == timeinfo.tm_min) &&
+                        (alarm_timeinfo.time.tm_hour == timeinfo.tm_hour))
+            {
+                execute_command(DFP_PLAY, DFP_PLAY_TF);
+                vTaskDelay(300 / portTICK_PERIOD_MS);
+                ESP_LOGI("ALARM", "ALARM triggered!");
+                annoying_alarm_mode(&alarm_timeinfo, &timeinfo, &dev);
+            }
+        }
         if (ALARM_UNSET)
         {
             gpio_intr_disable(BUTTON_N_PIN);
@@ -512,7 +499,6 @@ void app_main(void)
             run_alarm_mode(&alarm_timeinfo, &handle);
             ds3231_get_time(&dev, &timeinfo);
             set_time(timeinfo.tm_hour, timeinfo.tm_min);
-            vTaskDelay(100 / portTICK_PERIOD_MS);
         }
         else
         {
@@ -520,7 +506,6 @@ void app_main(void)
                 ESP_LOGE(I2C, "Couldn't ask the current time.\n");
                 break;
             }
-
             if ((old_timeinfo.tm_min != timeinfo.tm_min) || (old_timeinfo.tm_hour != timeinfo.tm_hour))
             {
                 set_hour((int)(timeinfo.tm_hour / 10), (int)(timeinfo.tm_hour % 10));
@@ -531,7 +516,7 @@ void app_main(void)
             else
                 vTaskDelay(300 / portTICK_PERIOD_MS);
         }
-        
+        vTaskDelay(300 / portTICK_PERIOD_MS);
     }
     power_nixie(false);
 
