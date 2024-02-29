@@ -18,7 +18,7 @@
 
 static const char *WIFI = "wifi station";
 #define WIFI_SSID "HUAWEI-B535-1489"
-#define WIFI_PASS "5YA9GF381L0"
+#define WIFI_PASS "5YA9GF381L0" // don't worry not real :P
 #define WIFI_MAX_RETRY 5
 
 EventGroupHandle_t s_wifi_event_group;
