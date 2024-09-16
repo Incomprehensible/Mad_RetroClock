@@ -16,9 +16,9 @@ There's an MP3-player onboard any melody can be programmed and set as an alarm c
 <details><summary>More photos</summary>
 <p>
 
-<img src="Pictures/6.jpeg" width="500"><img src="Pictures/3.jpg" width="500">
-<img src="Pictures/4.jpg" width="500"><img src="Pictures/5.jpg" width="500">
-<img src="Pictures/7.jpg" width="500"><img src="Pictures/8.jpeg" width="500">
+<img src="Pictures/6.jpeg" width="50%"><img src="Pictures/3.jpg" width="50%">
+<img src="Pictures/4.jpg" width="50%"><img src="Pictures/5.jpg" width="50%">
+<img src="Pictures/7.jpg" width="50%"><img src="Pictures/8.jpeg" width="50%">
 </p>
 </details>
 
