@@ -10,18 +10,19 @@ There's an MP3-player onboard any melody can be programmed and set as an alarm c
 
 <img src="SVG/bottom_b.svg" width="100%" height="300">
 
-# Gallery
-<img src="Pictures/1.jpg" width="500">
-<img src="Pictures/2.jpg" width="500">
+## Gallery
+<img src="Pictures/1.jpg" width="50%"><img src="Pictures/2.jpg" width="50%">
 
 <details><summary>More photos</summary>
 <p>
 
-<img src="Pictures/3.jpg" width="500" title="Mac status monitoring">
-<img src="Pictures/4.jpg" width="500" title="Mac status monitoring">
-<img src="Pictures/5.jpg" width="500" title="Mac status monitoring">
-<img src="Pictures/6.jpeg" width="500" title="Mac status monitoring">
-<img src="Pictures/7.jpg" width="500" title="Mac status monitoring">
-<img src="Pictures/8.jpeg" width="500" title="Mac status monitoring">
+<img src="Pictures/6.jpeg" width="500"><img src="Pictures/3.jpg" width="500">
+<img src="Pictures/4.jpg" width="500"><img src="Pictures/5.jpg" width="500">
+<img src="Pictures/7.jpg" width="500"><img src="Pictures/8.jpeg" width="500">
 </p>
 </details>
+
+## Further steps
+* Enclosure design
+* Add remote app control / IOT host node connectivity
+* Better power design to get rid of inrush current issue preventing the device to start up sometimes without USB power attached
